@@ -59,7 +59,7 @@ class AvToObjConverter:
         out_string = ""
         name = "Block"
         # out_string += "o Block {}\n".format(block.index)
-
+        print("Converting block with index {}, type = {}, look = {} and up = {}".format(block.index, block.type, block.look, block.up))
         vertices = [
             [block.x_max, block.y_min, block.z_min],  # 2 Bottom right front
             [block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
@@ -195,6 +195,7 @@ def transformBlock(verts, look, up, block=None):
     vertices = verts.copy()
     output_vertices = []
     translation_vector = [0, 0, 0]
+    rotation_degrees = [0, 0, 0]
 
     if block is not None:
         translation_vector[0] = (block.x_max + block.x_min) / 2
@@ -207,65 +208,67 @@ def transformBlock(verts, look, up, block=None):
         trafo_matrix = getTranslationMatrix(-translation_vector[0], -translation_vector[1], -translation_vector[2])
         temp_result = trafo_matrix * np.matrix(vertex).transpose()
         if look == 5:  # Vorne
-            if up == 1:
-                temp_result = getRotationMatrix(z=True, degrees=270) * temp_result
+            if up == 0:
+                rotation_degrees[2] = 90  # Korrekt
+            elif up == 1:
+                rotation_degrees[2] = 270  # Korrekt
             elif up == 2:
-                temp_result = getRotationMatrix(z=True, degrees=180) * temp_result  # um z 180°
-            elif up == 0:
-                temp_result = getRotationMatrix(z=True, degrees=90) * temp_result
+                rotation_degrees[2] = 180  # Korrekt
 
         elif look == 0:  # Links
             # rotation um y 90° counter, Rotation nach vorne
-            temp_result = getRotationMatrix(y=True, degrees=90) * temp_result
+            rotation_degrees[1] = 90  # Korrekt
             if up == 2:
-                temp_result = getRotationMatrix(z=True, degrees=180) * temp_result  # 180° um z, nach der ersten
+                rotation_degrees[2] = 180  # Korrekt
             elif up == 4:
-                temp_result = getRotationMatrix(z=True, degrees=270) * temp_result  # 90 counter z
+                rotation_degrees[2] = 90  # Korrekt (umkehrschluss)
             elif up == 5:
-                temp_result = getRotationMatrix(z=True, degrees=90) * temp_result
+                rotation_degrees[2] = 270  # Korrekt
 
         elif look == 1:  # Rechts
             # rotation um y 90° counter, Rotation nach vorne
-            temp_result = getRotationMatrix(y=True, degrees=-90) * temp_result
+            rotation_degrees[1] = 270  # Korrekt
             if up == 2:
-                temp_result = getRotationMatrix(z=True, degrees=-180) * temp_result  # 180° um z, nach der ersten
+                rotation_degrees[2] = 180  # Korrekt
             elif up == 4:
-                temp_result = getRotationMatrix(z=True, degrees=270) * temp_result  # 90 counter z
+                rotation_degrees[2] = 270  # Korrekt
             elif up == 5:
-                temp_result = getRotationMatrix(z=True, degrees=-90) * temp_result
+                rotation_degrees[2] = 90  # Korrekt (umkehrschluss)
 
         elif look == 2:  # Unten
-            temp_result = getRotationMatrix(x=True, degrees=-270) * temp_result  # Rotation nach vorne
-            if up == 1:
-                temp_result = getRotationMatrix(z=True, degrees=270) * temp_result
+            rotation_degrees[0] = 90  # Korrekt
+            if up == 0:
+                rotation_degrees[2] = 90  # Korrekt
+            elif up == 1:
+                rotation_degrees[2] = 270  # Korrekt
             elif up == 4:
-                temp_result = getRotationMatrix(z=True, degrees=180) * temp_result
-            elif up == 0:
-                temp_result = getRotationMatrix(z=True, degrees=90) * temp_result
+                rotation_degrees[2] = 180  # Korrekt
 
         elif look == 3:  # Oben
-            temp_result = getRotationMatrix(x=True, degrees=-90) * temp_result  # Rotation nach vorne
-            if up == 1:
-                temp_result = getRotationMatrix(z=True, degrees=270) * temp_result
-            elif up == 0:
-                temp_result = getRotationMatrix(z=True, degrees=90) * temp_result
+            rotation_degrees[0] = 270  # Vrstl korrekt
+            if up == 0:
+                rotation_degrees[2] = -270
+            elif up == 1:
+                rotation_degrees[1] = 90
             elif up == 5:
-                temp_result = getRotationMatrix(z=True, degrees=180) * temp_result
+                rotation_degrees[2] = 180  # Evtl korrekt
 
         elif look == 4:  # Hinten
-            temp_result = getRotationMatrix(x=True, degrees=180) * temp_result  # Rotation nach vorne
-            if up == 1:
-                temp_result = getRotationMatrix(z=True, degrees=270) * temp_result
-            elif up == 0:
-                temp_result = getRotationMatrix(z=True, degrees=90) * temp_result
-            elif up == 3:
-                temp_result = getRotationMatrix(z=True, degrees=180) * temp_result
+            rotation_degrees[1] = 180  # Korrekt
+            if up == 0:
+                rotation_degrees[2] = 270  # Korrekt
+            elif up == 1:
+                rotation_degrees[2] = 90  # Korrekt
+            elif up == 2:
+                rotation_degrees[2] = 180  # Korrekt
+
+        temp_result = getRotationMatrix(x_degrees=rotation_degrees[0], y_degrees=rotation_degrees[1], z_degrees=rotation_degrees[2]) * temp_result
 
         temp_result = getTranslationMatrix(translation_vector[0], translation_vector[1],
                                            translation_vector[2]) * temp_result
 
         temp_result = temp_result.tolist()
-        result = [np.round(temp_result[0][0], 10), np.round(temp_result[1][0], 10), np.round(temp_result[2][0], 10)]
+        result = [np.round(temp_result[0][0], 15), np.round(temp_result[1][0], 15), np.round(temp_result[2][0], 15)]
         output_vertices.append(result)
 
     return output_vertices
@@ -275,17 +278,19 @@ def getTranslationMatrix(x, y, z):
     return np.matrix([[1, 0, 0, x], [0, 1, 0, y], [0, 0, 1, z], [0, 0, 0, 1]])
 
 
-def getRotationMatrix(x=False, y=False, z=False, degrees=90):
+def getRotationMatrix(x_degrees=0, y_degrees=0, z_degrees=0):
     xMatrix, yMatrix, zMatrix = np.identity(4), np.identity(4), np.identity(4)
-    c, s = np.cos(np.radians(degrees)), np.sin(np.radians(degrees))
-    if x:
+    if x_degrees != 0:
+        c, s = np.cos(np.radians(x_degrees)), np.sin(np.radians(x_degrees))
         xMatrix = np.matrix(
             '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0,
                                                                         1))
-    if y:
+    if y_degrees != 0:
+        c, s = np.cos(np.radians(y_degrees)), np.sin(np.radians(y_degrees))
         yMatrix = np.matrix(
             '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1))
-    if z:
+    if z_degrees != 0:
+        c, s = np.cos(np.radians(z_degrees)), np.sin(np.radians(z_degrees))
         zMatrix = np.matrix(
             '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0,
                                                                         1))
@@ -294,12 +299,13 @@ def getRotationMatrix(x=False, y=False, z=False, degrees=90):
 
 conv = AvToObjConverter()
 appdata_path = 'C:/Users/Michael/AppData/Roaming/Avorion/ships/'
-# ship_name = 'rotationtest'
+ship_name = 'rotationtest'
 # ship_name = 'Iron Slope Front'
 # ship_name = 'RotationThruster'
 # ship_name = 'long slope'
 # ship_name = 'block'
-ship_name = 'corners'
+# ship_name = 'corners'
+# ship_name = 'rotations'
 # ship_name = 'blocktypes'
 # ship_name = 'Hyperion II'
 conv.convertToObj(appdata_path + ship_name + '.xml', './out/' + ship_name + '.obj')
