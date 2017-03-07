@@ -1,6 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<auto_2682239530652318457 accumulateHealth="true" convex="false">
-	<item parent="-1" index="0" maxDurability="32" currentDurability="31.9466667">
-		<block lowerX="-1" lowerY="-1" lowerZ="-1" upperX="1" upperY="1" upperZ="1" index="1" material="0" look="1" up="3" color="ffbfaea3"/>
-	</item>
-</auto_2682239530652318457>
