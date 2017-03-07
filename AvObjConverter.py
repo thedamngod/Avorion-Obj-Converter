@@ -43,7 +43,8 @@ class AvToObjConverter:
             self.blocks = readSourceFile(inputFile)
         try:
             while os.path.exists(outputFile) and os.path.getsize(outputFile) > 0:
-                outputFile = outputFile[:-4] + '1' + outputFile[-4:]
+                # outputFile = outputFile[:-4] + '1' + outputFile[-4:]
+                os.remove(outputFile)
                 print(outputFile)
 
             file = open(outputFile, 'a')
@@ -60,15 +61,24 @@ class AvToObjConverter:
         name = "Block"
         # out_string += "o Block {}\n".format(block.index)
         print("Converting block with index {}, type = {}, look = {} and up = {}".format(block.index, block.type, block.look, block.up))
+        # vertices = [
+        #     [block.x_max, block.y_min, block.z_min],  # 2 Bottom right front
+        #     [block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
+        #     [block.x_max, block.y_max, block.z_min],  # 4 Top right front
+        #     [block.x_min, block.y_max, block.z_min],  # 3 Top left front
+        #     [block.x_max, block.y_min, block.z_max],  # 6 Bottom right back
+        #     [block.x_min, block.y_min, block.z_max],  # 5 Bottom left back
+        #     [block.x_max, block.y_max, block.z_max],  # 8 Top right back
+        #     [block.x_min, block.y_max, block.z_max]]  # 7 Top left back
         vertices = [
-            [block.x_max, block.y_min, block.z_min],  # 2 Bottom right front
-            [block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
-            [block.x_max, block.y_max, block.z_min],  # 4 Top right front
-            [block.x_min, block.y_max, block.z_min],  # 3 Top left front
-            [block.x_max, block.y_min, block.z_max],  # 6 Bottom right back
-            [block.x_min, block.y_min, block.z_max],  # 5 Bottom left back
-            [block.x_max, block.y_max, block.z_max],  # 8 Top right back
-            [block.x_min, block.y_max, block.z_max]]  # 7 Top left back
+            [1, -1, -1],  # 2 Bottom right front
+            [-1, -1, -1],  # 1 Bottom left front
+            [1, 1, -1],  # 4 Top right front
+            [-1, 1, -1],  # 3 Top left front
+            [1, -1, 1],  # 6 Bottom right back
+            [-1, -1, 1],  # 5 Bottom left back
+            [1, 1, 1],  # 8 Top right back
+            [-1, 1, 1]]  # 7 Top left back
 
         faces = None
 
@@ -83,13 +93,6 @@ class AvToObjConverter:
                      [3, 4, 8, 7]]
 
         elif block.type in [100, 104, 151, 171, 185, 191, 511]:  # Edge with 6 vertices
-            # vertices = [
-            #             [block.x_max, block.y_min, block.z_min],  # 2 Bottom right front
-            #             [block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
-            #             [block.x_max, block.y_min, block.z_max],  # 6 Bottom right back -> 4
-            #             [block.x_min, block.y_min, block.z_max],  # 5 Bottom left back -> 3
-            #             [block.x_max, block.y_max, block.z_max],  # 8 Top right back -> 6
-            #             [block.x_min, block.y_max, block.z_max]]  # 7 Top left back -> 5
             del vertices[2:4]
 
             # vertices = transformBlock(vertices, 5, 3, block)
@@ -102,12 +105,6 @@ class AvToObjConverter:
 
         elif block.type in [103, 107, 154, 174, 188, 194, 514]:  # Edge with 5 vertices
             name = "5 Corner Edge"
-            # vertices = [
-            #             [block.x_max, block.y_min, block.z_min],  # 2 Bottom right front
-            #             [block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
-            #             [block.x_max, block.y_min, block.z_max],  # 6 Bottom right back -> 4
-            #             [block.x_min, block.y_min, block.z_max],  # 5 Bottom left back -> 3
-            #             [block.x_min, block.y_max, block.z_max]]  # 7 Top left back -> 5
             del vertices[7]
             del vertices[2:4]
             vertices = transformBlock(vertices, block.look, block.up, block)
@@ -115,14 +112,10 @@ class AvToObjConverter:
                      [1, 2, 5],
                      [2, 4, 5],
                      [3, 4, 5],
-                     [3, 4, 1]]
+                     [3, 4, 2, 1]]
 
         elif block.type in [101, 105, 152, 172, 186, 192, 512]:  # Edge with 4 vertices
             name = "4 Corner Edge"
-            # vertices = [[block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
-            #             [block.x_max, block.y_min, block.z_max],  # 6 Bottom right back -> 3
-            #             [block.x_min, block.y_min, block.z_max],  # 5 Bottom left back -> 2
-            #             [block.x_min, block.y_max, block.z_max]]  # 7 Top left back -> 4
             del vertices[7]
             del vertices[1:4]
             vertices = transformBlock(vertices, block.look, block.up, block)
@@ -133,14 +126,6 @@ class AvToObjConverter:
 
         elif block.type in [102, 106, 153, 173, 187, 193, 513]:  # Edge with 7 vertices
             name = "7 Corner Edge"
-            # vertices = [
-            #             [block.x_max, block.y_min, block.z_min],  # 2 Bottom right front
-            #             [block.x_min, block.y_min, block.z_min],  # 1 Bottom left front
-            #             [block.x_max, block.y_max, block.z_min],  # 3 Top left front
-            #             [block.x_max, block.y_min, block.z_max],  # 6 Bottom right back -> 5
-            #             [block.x_min, block.y_min, block.z_max],  # 5 Bottom left back -> 4
-            #             [block.x_max, block.y_max, block.z_max],  # 8 Top right back -> 7
-            #             [block.x_min, block.y_max, block.z_max]]  # 7 Top left back -> 6
             del vertices[3]
             vertices = transformBlock(vertices, block.look, block.up, block)
             faces = [[1, 4, 6, 3],
@@ -195,75 +180,94 @@ def transformBlock(verts, look, up, block=None):
     vertices = verts.copy()
     output_vertices = []
     translation_vector = [0, 0, 0]
-    rotation_degrees = [0, 0, 0]
+    scale_amounts = [1, 1, 1]
 
     if block is not None:
         translation_vector[0] = (block.x_max + block.x_min) / 2
         translation_vector[1] = (block.y_max + block.y_min) / 2
         translation_vector[2] = (block.z_max + block.z_min) / 2
+        scale_amounts[0] = (block.x_max - block.x_min) / 2
+        scale_amounts[1] = (block.y_max - block.y_min) / 2
+        scale_amounts[2] = (block.z_max - block.z_min) / 2
 
     for vertex in vertices:
         vertex.append(1)
 
-        trafo_matrix = getTranslationMatrix(-translation_vector[0], -translation_vector[1], -translation_vector[2])
-        temp_result = trafo_matrix * np.matrix(vertex).transpose()
+        temp_result = np.matrix(vertex).transpose()
         if look == 5:  # Vorne
             if up == 0:
-                rotation_degrees[2] = 90  # Korrekt
-            elif up == 1:
-                rotation_degrees[2] = 270  # Korrekt
+                temp_result = rotate(temp_result, z_degrees=90)
             elif up == 2:
-                rotation_degrees[2] = 180  # Korrekt
+                temp_result = rotate(temp_result, z_degrees=180)
+            elif up == 1:
+                temp_result = rotate(temp_result, z_degrees=270)
 
-        elif look == 0:  # Links
-            # rotation um y 90° counter, Rotation nach vorne
-            rotation_degrees[1] = 90  # Korrekt
+        elif look == 0:  #
             if up == 2:
-                rotation_degrees[2] = 180  # Korrekt
+                temp_result = rotate(temp_result, y_degrees=90)
+                temp_result = rotate(temp_result, x_degrees=180)
+            elif up == 3:
+                temp_result = rotate(temp_result, y_degrees=90)
             elif up == 4:
-                rotation_degrees[2] = 90  # Korrekt (umkehrschluss)
+                temp_result = rotate(temp_result, x_degrees=270)
+                temp_result = rotate(temp_result, z_degrees=90)
             elif up == 5:
-                rotation_degrees[2] = 270  # Korrekt
+                temp_result = rotate(temp_result, x_degrees=90)
+                temp_result = rotate(temp_result, z_degrees=270)
 
-        elif look == 1:  # Rechts
-            # rotation um y 90° counter, Rotation nach vorne
-            rotation_degrees[1] = 270  # Korrekt
+        elif look == 1:  #
             if up == 2:
-                rotation_degrees[2] = 180  # Korrekt
+                temp_result = rotate(temp_result, y_degrees=270)
+                temp_result = rotate(temp_result, x_degrees=180)
+            elif up == 3:
+                temp_result = rotate(temp_result, y_degrees=270)
             elif up == 4:
-                rotation_degrees[2] = 270  # Korrekt
+                temp_result = rotate(temp_result, y_degrees=270)
+                temp_result = rotate(temp_result, x_degrees=270)
             elif up == 5:
-                rotation_degrees[2] = 90  # Korrekt (umkehrschluss)
+                temp_result = rotate(temp_result, y_degrees=270)
+                temp_result = rotate(temp_result, x_degrees=90)
 
-        elif look == 2:  # Unten
-            rotation_degrees[0] = 90  # Korrekt
+        elif look == 2:  #
             if up == 0:
-                rotation_degrees[2] = 90  # Korrekt
+                temp_result = rotate(temp_result, x_degrees=90)
+                temp_result = rotate(temp_result, y_degrees=90)
             elif up == 1:
-                rotation_degrees[2] = 270  # Korrekt
+                temp_result = rotate(temp_result, x_degrees=90)
+                temp_result = rotate(temp_result, y_degrees=270)
             elif up == 4:
-                rotation_degrees[2] = 180  # Korrekt
-
-        elif look == 3:  # Oben
-            rotation_degrees[0] = 270  # Vrstl korrekt
-            if up == 0:
-                rotation_degrees[2] = -270
-            elif up == 1:
-                rotation_degrees[1] = 90
+                temp_result = rotate(temp_result, x_degrees=90)
+                temp_result = rotate(temp_result, y_degrees=180)
             elif up == 5:
-                rotation_degrees[2] = 180  # Evtl korrekt
+                temp_result = rotate(temp_result, x_degrees=90)
 
-        elif look == 4:  # Hinten
-            rotation_degrees[1] = 180  # Korrekt
+        elif look == 3:  #
             if up == 0:
-                rotation_degrees[2] = 270  # Korrekt
+                temp_result = rotate(temp_result, x_degrees=270)
+                temp_result = rotate(temp_result, y_degrees=270)
             elif up == 1:
-                rotation_degrees[2] = 90  # Korrekt
+                temp_result = rotate(temp_result, x_degrees=270)
+                temp_result = rotate(temp_result, y_degrees=90)
+            elif up == 4:
+                temp_result = rotate(temp_result, x_degrees=270)
+            elif up == 5:
+                temp_result = rotate(temp_result, x_degrees=270)
+                temp_result = rotate(temp_result, y_degrees=180)
+
+        elif look == 4:  #
+            if up == 0:
+                temp_result = rotate(temp_result, y_degrees=180)
+                temp_result = rotate(temp_result, z_degrees=90)
+            elif up == 1:
+                temp_result = rotate(temp_result, y_degrees=180)
+                temp_result = rotate(temp_result, z_degrees=270)
             elif up == 2:
-                rotation_degrees[2] = 180  # Korrekt
+                temp_result = rotate(temp_result, y_degrees=180)
+                temp_result = rotate(temp_result, z_degrees=180)
+            elif up == 3:
+                temp_result = rotate(temp_result, y_degrees=180)
 
-        temp_result = getRotationMatrix(x_degrees=rotation_degrees[0], y_degrees=rotation_degrees[1], z_degrees=rotation_degrees[2]) * temp_result
-
+        temp_result = scale(temp_result, scale_amounts[0], scale_amounts[1], scale_amounts[2])
         temp_result = getTranslationMatrix(translation_vector[0], translation_vector[1],
                                            translation_vector[2]) * temp_result
 
@@ -297,15 +301,49 @@ def getRotationMatrix(x_degrees=0, y_degrees=0, z_degrees=0):
     return xMatrix * yMatrix * zMatrix
 
 
+def scale(vector, x_amount=0, y_amount=0, z_amount=0):
+    xMatrix, yMatrix, zMatrix = np.identity(4), np.identity(4), np.identity(4)
+    xMatrix[0][0] = x_amount
+    yMatrix[1][1] = y_amount
+    yMatrix[2][2] = z_amount
+    result = xMatrix.dot(yMatrix.dot(zMatrix.dot(vector)))
+    return result
+
+
+def rotate(vector, x_degrees=0, y_degrees=0, z_degrees=0):
+    xMatrix, yMatrix, zMatrix = np.identity(4), np.identity(4), np.identity(4)
+    if x_degrees != 0:
+        c, s = np.cos(np.radians(x_degrees)), np.sin(np.radians(x_degrees))
+        xMatrix = np.matrix(
+            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0,
+                                                                        1))
+    if y_degrees != 0:
+        c, s = np.cos(np.radians(y_degrees)), np.sin(np.radians(y_degrees))
+        yMatrix = np.matrix(
+            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0, 1))
+    if z_degrees != 0:
+        c, s = np.cos(np.radians(z_degrees)), np.sin(np.radians(z_degrees))
+        zMatrix = np.matrix(
+            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0,
+                                                                        1))
+    result = zMatrix.dot(vector)
+    result = yMatrix.dot(result)
+    result = xMatrix.dot(result)
+    return result
+
+
 conv = AvToObjConverter()
 appdata_path = 'C:/Users/Michael/AppData/Roaming/Avorion/ships/'
-ship_name = 'rotationtest'
+# ship_name = 'rotationtest'
 # ship_name = 'Iron Slope Front'
 # ship_name = 'RotationThruster'
 # ship_name = 'long slope'
 # ship_name = 'block'
 # ship_name = 'corners'
+# ship_name = 'fliptest'
 # ship_name = 'rotations'
-# ship_name = 'blocktypes'
-# ship_name = 'Hyperion II'
+# ship_name = 'blocktypes2'
+ship_name = 'Hyperion II'
 conv.convertToObj(appdata_path + ship_name + '.xml', './out/' + ship_name + '.obj')
+
+scale(np.matrix([1, 1, 1, 0]).transpose(), 5, 6, 7)
