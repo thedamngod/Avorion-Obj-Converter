@@ -1,7 +1,6 @@
 import os
 import xml.etree.ElementTree
 
-import itertools
 from sys import argv
 from typing import List
 
@@ -9,6 +8,15 @@ import numpy as np
 import sys
 
 import time
+
+from waveobjparser import Face
+from waveobjparser import Normal
+from waveobjparser import ObjParser
+from waveobjparser import ObjWriter
+from waveobjparser import Scene
+from waveobjparser import Text_Coord
+from waveobjparser import Vertex
+from waveobjparser import WaveObject
 
 DECIMALS = 8
 
@@ -25,11 +33,6 @@ UPPER_X = 'upperX'
 LOWER_X = 'lowerX'
 BLOCK = 'block'
 ITEM = 'item'
-
-Vertex = List[float]
-Face = List[int]
-Normal = List[float]
-UV = List[float]
 
 
 class Block:
@@ -49,192 +52,75 @@ class Block:
         self.type = int(type)
 
 
+def generateObject(vertices: List[Vertex], faces: List[Face],
+                   vertex_normals: List[Normal], name: str, uvs: List[Text_Coord] = None, smoothing: bool = False):
+    obj = WaveObject()
+    obj.setName(name)
+    obj.setSmoothing(smoothing)
+    obj.addMaterial('Standard')
+
+    for vertex in vertices:  # Add the strings for the vertices
+        obj.addVertex(vertex)
+
+    if uvs is not None:  # Add UV coordinates to the object
+        for uv in uvs:
+            obj.addTextureCoord(uv)
+
+    if vertex_normals is not None:  # Add the Strings for the vertex normals
+        for normal in vertex_normals:
+            obj.addNormal(normal)
+
+    if faces is not None:  # Add the strings for the faces of the object
+        for face in faces:
+            obj.addFace(face)
+    return obj
+
+
+def convertBlockToObj(block):
+    print("Converting block with index {}, type = {}, look = {} and up = {}".format(
+        block.index, block.type, block.look, block.up))
+
+    if block.type in [10]:  # Hangar Block -- TODO: Replace Placeholder for hangar blocks
+        file = "Cube.obj"
+
+    elif block.type in [100, 104, 151, 171, 185, 191, 511]:  # Edge with 6 vertices
+        file = "Edge.obj"
+
+    elif block.type in [103, 107, 154, 174, 188, 194, 514]:  # Corner with 5 vertices
+        file = "5 Vertex Corner"
+
+    elif block.type in [101, 105, 152, 172, 186, 192, 512]:  # Corner with 4 vertices
+        file = "4 Vertex Corner.obj"
+
+    elif block.type in [102, 106, 153, 173, 187, 193, 513]:  # Edge with 7 vertices
+        file = "7 vertex corner.obj"
+    else:
+        file = "Cube.obj"
+
+    parser = ObjParser("./objects/{}".format(file))
+    scene = parser.parseFile()
+    obj = scene.objects[0]
+    return transformObject(obj, block.look, block.up, block)
+
+
 class AvToObjConverter:
     def __init__(self, blocks=None):
-        self.normal_count = 0
-        self.vc = 0
         self.blocks = blocks
+        self.scene = Scene()
 
     def convertToObj(self, inputFile, outputFile):
+        writer = ObjWriter(outputFile)
+        self.scene.setMtllib("Avorion_Materials")
+
         if self.blocks is None:
             self.blocks = readSourceFile(inputFile)
-        try:
-            os.makedirs(os.path.dirname(outputFile), exist_ok=True)
-            if os.path.exists(outputFile) and os.path.getsize(outputFile) > 0:
-                os.remove(outputFile)
-                print(outputFile)
-            start_time = time.time()
-            file = open(outputFile, 'a')
-            file.write("mtllib Avorion_Materials.mtl\n")
-            for block in self.blocks:
-                file.write(self.convertBlockToObj(block))
-            file.close()
-            print("Conversion process took {} seconds".format(time.time() - start_time))
-            print("Converted {} blocks".format(len(self.blocks)))
-        except FileNotFoundError:
-            print('Could not open output file')
 
-    def convertBlockToObj(self, block):
-        out_string = ""
-        name = "Block"
-        print("Converting block with index {}, type = {}, look = {} and up = {}".format(
-            block.index, block.type, block.look, block.up))
-        faces = None
-        v_indices = []
-        f_indices = []
-
-        if block.type in [10]:  # Hangar Block -- TODO: Replace Placeholder for hangar blocks
-            v_indices = [1, 2, 3, 4, 5, 6, 7, 8]
-            f_indices = [0, 1, 2, 3, 4, 5]
-
-        elif block.type in range(1, 16) or block.type in range(50, 56) \
-                or block.type in [150, 170, 190, 510]:  # Cuboid blocks
-            v_indices = [1, 2, 3, 4, 5, 6, 7, 8]
-            f_indices = [0, 1, 2, 3, 4, 5]
-
-        elif block.type in [100, 104, 151, 171, 185, 191, 511]:  # Edge with 6 vertices
-            name = "Edge"
-            v_indices = [1, 2, 5, 6, 7, 8]
-            f_indices = [2, 4, 6, 7, 16]
-
-        elif block.type in [103, 107, 154, 174, 188, 194, 514]:  # Corner with 5 vertices
-            name = "5 Vertex Corner"
-            v_indices = [1, 2, 5, 6, 7]
-            f_indices = [2, 7, 10, 13, 14]
-
-        elif block.type in [101, 105, 152, 172, 186, 192, 512]:  # Corner with 4 vertices
-            name = "4 Vertex Corner"
-            v_indices = [1, 5, 6, 7]
-            f_indices = [7, 8, 10, 15]
-
-        elif block.type in [102, 106, 153, 173, 187, 193, 513]:  # Edge with 7 vertices
-            name = "7 Vertex Edge"
-            v_indices = [1, 2, 3, 5, 6, 7, 8]
-            f_indices = [1, 2, 4, 6, 9, 11, 12]
-            faces = [[1, 4, 6, 3],  # Left
-                     [4, 5, 7, 6],  # Back
-                     [1, 2, 5, 4],  # Bottom
-                     [3, 6, 7],  # Top
-                     [1, 2, 3],  # Front
-                     [2, 3, 7],  # Diagonal Missing corner
-                     [2, 5, 7]]  # Right
-
-        vertices, genfaces, vertex_normals = self.generate(v_indices, f_indices)
-        vertices, vertex_normals = transformBlock(vertices, vertex_normals, block.look, block.up, block)
-        if faces is None:
-            faces = genfaces
-        out_string += self.generateObjectString(vertices, faces, vertex_normals, "{} {}".format(name, block.index))
-        return out_string
-
-    def generate(self, v_indices: List[int], f_indices: List[int]):
-
-        vertices = [
-            [1, -1, -1],  # 1 Bottom left front
-            [-1, -1, -1],  # 2 Bottom right front
-            [1, 1, -1],  # 3 Top left front
-            [-1, 1, -1],  # 4 Top right front
-            [1, -1, 1],  # 5 Bottom left back
-            [-1, -1, 1],  # 6 Bottom right back
-            [1, 1, 1],  # 7 Top left back
-            [-1, 1, 1]]  # 8 Top right back
-
-        faces = [
-            [2, 6, 8, 4],  # 0 Right
-            [1, 5, 7, 3],  # 1 Left -
-            [1, 2, 6, 5],  # 2 Bottom -
-            # [3, 4, 8, 7],  # 3 Top
-            [7, 8, 4, 3],  # 3 Top
-            [5, 6, 8, 7],  # 4 Back -
-            [1, 2, 4, 3],  # 5 Front
-            [2, 6, 8],  # 6 Diagonal Right -
-            [1, 5, 7],  # 7 Diagonal Left
-            [1, 6, 5],  # 8 Diagonal Bottom
-            [3, 7, 8],  # 9 Diagonal Top -
-            [5, 6, 7],  # 10 Diagonal Back
-            [1, 2, 3],  # 11 Diagonal Front -
-            [2, 3, 8],  # 12 Triangle 7 Verts -
-            [1, 2, 7],  # 13 Triangle Front Bottom to Back Top Left
-            [2, 6, 7],  # 14 Triangle Right Bottom to Back Top Left
-            [1, 6, 7],  # 15 Triangle 4 Verts
-            [1, 2, 8, 7]  # 16 Slope for Edge Block
-        ]
-
-        vertex_normals = [
-            [-1, 0, 0],  # 0 Right
-            [1, 0, 0],  # 1 Left
-            [0, -1, 0],  # 2 Top
-            [0, 1, 0],  # 3 Bottom
-            [0, 0, 1],  # 4 Back
-            [0, 0, -1],  # 5 Front
-            [-1, 0, 0],  # 6 Diagonal Right
-            [1, 0, 0],  # 7 Diagonal Left
-            [0, -1, 0],  # 8 Diagonal Bottom
-            [0, 1, 0],  # 9 Diagonal Top
-            [0, 0, 1],  # 10 Diagonal Back
-            [0, 0, -1],  # 11 Diagonal Front
-            [-1, 1, -1],  # 12 Diagonal missing corner 4
-            [0, 1, -1],  # 13 Triangle Front Bottom to Back Top Left
-            [-1, 1, 0],  # 14 Triangle Right Bottom to Back Top Left
-            [-1, 1, -1],  # 15 Triangle 4 Verts
-            [0, 1, -1]  # 16 Slope
-        ]
-
-        out_vertices = [vertices[index - 1] for index in range(1, 9) if index in v_indices]  # Select Vertices
-        out_faces = [faces[index] for index in range(len(faces)) if index in f_indices]  # Select Faces
-        out_normals = []
-        for face in out_faces:  # Select Normals
-            index = faces.index(face)
-            # out_normals.append(normalize(vertex_normals[index]))
-            out_normals.append(vertex_normals[index])
-
-        # Map the vertex indices to the correct number for all faces
-        for i in range(len(v_indices)):
-            if v_indices[i] != i + 1:
-                mapping = lambda x: i + 1 if x == v_indices[i] else x
-                for index in range(len(out_faces)):
-                    out_faces[index] = list(map(mapping, out_faces[index]))
-
-        # Construct UV Maps -- TODO
-
-        return out_vertices, out_faces, out_normals
-
-    def generateObjectString(self, vertices: List[Vertex], faces: List[Face],
-                             vertex_normals: List[Normal], name: str, uvs: List[UV] = None, smoothing: bool = False):
-        out_string = "o {}\n".format(name)
-        smoothing = "on" if smoothing else "off"
-        for vertex in vertices:  # Add the strings for the vertices
-            out_string += "v {} {} {}\n".format(vertex[0], vertex[1], vertex[2])
-
-        if uvs is not None:  # Add UV coordinates to the object
-            for uv in uvs:
-                out_string += "vt "
-                for coord in uv:
-                    out_string += "{} ".format(coord)
-                out_string += "\n"
-
-        if vertex_normals is not None:  # Add the Strings for the vertex normals
-            for normal in vertex_normals:
-                out_string += "vn "
-                out_string += "{} {} {}".format(normal[0], normal[1], normal[2])
-                out_string += "\n"
-
-        out_string += "usemtl Standard\n"  # Add strign for the used material
-        out_string += "s {}\n".format(smoothing)  # Add string for the enabling/disabling of smoothing
-        if faces is not None:  # Add the strings for the faces of the object
-            for face in faces:
-                out_string += "f "
-                for vertex in face:
-                    if vertex_normals is not None:
-                        normal_index = faces.index(face) + 1
-                        xstr = lambda s: str(s) if s is not None else ''
-                        out_string += "{}/{}/{} ".format(self.vc + vertex, xstr(''), self.normal_count + normal_index)
-                    else:
-                        out_string += "{} ".format(self.vc + vertex)
-                out_string += "\n"
-        self.vc += len(vertices)
-        if vertex_normals is not None:
-            self.normal_count += len(vertex_normals)
-        return out_string
+        start_time = time.time()
+        for block in self.blocks:
+            self.scene.addObject(convertBlockToObj(block))
+        writer.writeScene(self.scene)
+        print("Conversion process took {} seconds".format(time.time() - start_time))
+        print("Converted {} blocks".format(len(self.blocks)))
 
 
 def getSizes(block):
@@ -257,7 +143,7 @@ def normalize(vector: Vertex):
     for element in vector:
         length += element ** 2
     length = np.math.sqrt(length)
-    vector = [entry / length for entry in vector]
+    vector = tuple(entry / length for entry in vector)
     return vector
 
 
@@ -303,9 +189,9 @@ def rotateVectors(vertices: List[Vertex], look: int = 5, up: int = 3):
     """
     return_vectors = []
     for vector in vertices:
-        vector.append(1)
-
-        temp_result = np.matrix(vector).transpose()
+        temp_result = list(vector)
+        temp_result.append(1)
+        temp_result = np.matrix(temp_result).transpose()
         if look == 5:  #
             if up == 0:
                 temp_result = rotate(temp_result, z_degrees=90)
@@ -364,25 +250,24 @@ def rotateVectors(vertices: List[Vertex], look: int = 5, up: int = 3):
                 temp_result = rotate(temp_result, z_degrees=180)
         temp_result = temp_result.tolist()
         return_vectors.append(
-            [np.round(temp_result[0][0], DECIMALS), np.round(temp_result[1][0], DECIMALS),
-             np.round(temp_result[2][0], DECIMALS)])
-        del (vector[-1])
+            (np.round(temp_result[0][0], DECIMALS), np.round(temp_result[1][0], DECIMALS),
+             np.round(temp_result[2][0], DECIMALS)))
+        # del (vector[-1])
     return return_vectors
 
 
-def transformBlock(verts: List[Vertex], vertex_normals: List[Normal] = None, look: int = 5, up: int = 3, block=None):
+def transformObject(obj: WaveObject, look: int = 5, up: int = 3, block=None):
     """
-    Transforms the given vertices
+    Transforms the given object
 
-    :param verts: Vertices which will be transformed
-    :param vertex_normals: Normal vectors which will be transformed
+    :param obj: Wavefront Object which should be transformed
     :param look: Index of the look vector
     :param up: Index of the up vector
     :param block: Block object, which is the base of the vertices and normals
     :return: The transformed vertices and normal vectors
     """
-    vertices = verts.copy()
-    normals = vertex_normals.copy() if vertex_normals is not None else []
+    vertices = obj.vertices.copy()
+    normals = obj.vertex_normals.copy()
     translation_vector = [0, 0, 0]
     scale_amounts = [1, 1, 1]
 
@@ -400,7 +285,9 @@ def transformBlock(verts: List[Vertex], vertex_normals: List[Normal] = None, loo
     scale_amounts = [1 / amount for amount in scale_amounts]
     output_normals = [transformVector(normal, scale_amounts, [0, 0, 0]) for normal in normals]
 
-    return output_vertices, output_normals
+    out_obj = generateObject(output_vertices, obj.faces, output_normals, obj.name, obj.texture_coords, obj.smoothing)
+
+    return out_obj
 
 
 def transformVector(vector: Vertex, scales: List[float], translations: List[float]):
@@ -412,7 +299,8 @@ def transformVector(vector: Vertex, scales: List[float], translations: List[floa
     :param translations: Specifies the translation amount in x, y, and z direction
     :return: The transformed vector as Vertex
     """
-    temp_vector = vector.copy()
+
+    temp_vector = list(vector)
     temp_vector.append(1)
     temp_result = np.matrix(temp_vector).transpose()
 
@@ -420,8 +308,8 @@ def transformVector(vector: Vertex, scales: List[float], translations: List[floa
     temp_result = translate(temp_result, translations[0], translations[1], translations[2])
 
     temp_result = temp_result.tolist()
-    result = [np.round(temp_result[0][0], DECIMALS), np.round(temp_result[1][0], DECIMALS),
-              np.round(temp_result[2][0], DECIMALS)]
+    result = (np.round(temp_result[0][0], DECIMALS), np.round(temp_result[1][0], DECIMALS),
+              np.round(temp_result[2][0], DECIMALS))
     # del (vector[-1])
     return result
 
@@ -477,18 +365,24 @@ def rotate(vector: np.ndarray, x_degrees: float = 0, y_degrees: float = 0, z_deg
     if x_degrees != 0:
         c, s = np.cos(np.radians(x_degrees)), np.sin(np.radians(x_degrees))
         xMatrix = np.matrix(
-            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(1, 0, 0, 0, 0, c, -s, 0, 0, s, c, 0, 0, 0, 0,
-                                                                        1))
+            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(1, 0, 0, 0,
+                                                                        0, c, -s, 0,
+                                                                        0, s, c, 0,
+                                                                        0, 0, 0, 1))
     if y_degrees != 0:
         c, s = np.cos(np.radians(y_degrees)), np.sin(np.radians(y_degrees))
         yMatrix = np.matrix(
-            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, 0, 0, 0,
-                                                                        1))
+            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, 0, -s, 0,
+                                                                        0, 1, 0, 0,
+                                                                        s, 0, c, 0,
+                                                                        0, 0, 0, 1))
     if z_degrees != 0:
         c, s = np.cos(np.radians(z_degrees)), np.sin(np.radians(z_degrees))
         zMatrix = np.matrix(
-            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, -s, 0, 0, s, c, 0, 0, 0, 0, 1, 0, 0, 0, 0,
-                                                                        1))
+            '{} {} {} {}; {} {} {} {}; {} {} {} {}; {} {} {} {}'.format(c, -s, 0, 0,
+                                                                        s, c, 0, 0,
+                                                                        0, 0, 1, 0,
+                                                                        0, 0, 0, 1))
     result = zMatrix.dot(vector)
     result = yMatrix.dot(result)
     result = xMatrix.dot(result)
@@ -507,3 +401,6 @@ if __name__ == "__main__":
 
     converter = AvToObjConverter()
     converter.convertToObj(os.path.join(path, ship_name + '.xml'), './out/' + ship_name + '.obj')
+    # parser = ObjParser("./objects/Cube.obj")
+    # scene = parser.parseFile()
+    # print(scene.objects[0])
