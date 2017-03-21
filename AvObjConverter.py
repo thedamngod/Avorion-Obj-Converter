@@ -143,7 +143,7 @@ def normalize(vector: Vertex):
     for element in vector:
         length += element ** 2
     length = np.math.sqrt(length)
-    vector = [entry / length for entry in vector]
+    vector = tuple(entry / length for entry in vector)
     return vector
 
 
