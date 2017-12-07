@@ -25,12 +25,12 @@ UP = 'up'
 LOOK = 'look'
 MATERIAL = 'material'
 INDEX = 'index'
-UPPER_Z = 'upperZ'
-LOWER_Z = 'lowerZ'
-UPPER_Y = 'upperY'
-LOWER_Y = 'lowerY'
-UPPER_X = 'upperX'
-LOWER_X = 'lowerX'
+UPPER_Z = 'uz'
+LOWER_Z = 'lz'
+UPPER_Y = 'uy'
+LOWER_Y = 'ly'
+UPPER_X = 'ux'
+LOWER_X = 'lx'
 BLOCK = 'block'
 ITEM = 'item'
 
@@ -39,7 +39,10 @@ class Block:
     def __init__(self, index: int, x_min: float, x_max: float, y_min: float, y_max: float, z_min: float, z_max: float,
                  type: int, material: int, look: int, up: int, color: str):
         self.material = float(material)
-        self.x_max = float(x_max)
+        try:
+            self.x_max = float(x_max)
+        except TypeError:
+            print("Error in parameter x_max: ", x_max)
         self.y_min = float(y_min)
         self.y_max = float(y_max)
         self.z_min = float(z_min)
@@ -87,7 +90,7 @@ def convertBlockToObj(block):
         file = "Edge.obj"
 
     elif block.type in [103, 107, 154, 174, 188, 194, 514]:  # Corner with 5 vertices
-        file = "5 Vertex Corner"
+        file = "5 Vertex Corner.obj"
 
     elif block.type in [101, 105, 152, 172, 186, 192, 512]:  # Corner with 4 vertices
         file = "4 Vertex Corner.obj"
