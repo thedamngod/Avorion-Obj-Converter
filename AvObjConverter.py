@@ -163,21 +163,22 @@ def readSourceFile(file):
         print("The input file was not found.\n Please make sure the file exists")
         sys.exit()
     blocks = []
-    for item in tree.findall(ITEM):
-        for block in item.findall(BLOCK):
-            index = item.get(INDEX)
-            x_min = block.get(LOWER_X)
-            x_max = block.get(UPPER_X)
-            y_min = block.get(LOWER_Y)
-            y_max = block.get(UPPER_Y)
-            z_min = block.get(LOWER_Z)
-            z_max = block.get(UPPER_Z)
-            type = block.get(INDEX)
-            material = block.get(MATERIAL)
-            look = block.get(LOOK)
-            up = block.get(UP)
-            color = block.get(COLOR)
-            blocks.append(Block(index, x_min, x_max, y_min, y_max, z_min, z_max, type, material, look, up, color))
+    for plan in tree.findall("plan"):
+        for item in plan.findall(ITEM):
+            for block in item.findall(BLOCK):
+                index = item.get(INDEX)
+                x_min = block.get(LOWER_X)
+                x_max = block.get(UPPER_X)
+                y_min = block.get(LOWER_Y)
+                y_max = block.get(UPPER_Y)
+                z_min = block.get(LOWER_Z)
+                z_max = block.get(UPPER_Z)
+                type = block.get(INDEX)
+                material = block.get(MATERIAL)
+                look = block.get(LOOK)
+                up = block.get(UP)
+                color = block.get(COLOR)
+                blocks.append(Block(index, x_min, x_max, y_min, y_max, z_min, z_max, type, material, look, up, color))
     return blocks
 
 
